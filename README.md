@@ -32,6 +32,10 @@
 |---|---|
 | ![测试设备](docs/screenshots/05_test_equipment_zh.png) | ![属性](docs/screenshots/06_library_inspector_en.png) |
 
+| PDF 工程报告（中文） | PDF 第 2 页（英文 / 英制） |
+|---|---|
+| ![PDF 报告](docs/screenshots/07_pdf_report_zh.png) | ![PDF U 位排布](docs/screenshots/08_pdf_layout_en.png) |
+
 ### 功能对照
 
 | 参考配置器 | 本实现 |
@@ -42,8 +46,8 @@
 | 可信性 / 合理性检查 | U 位冲突、越界、设备深度、1600 kg 静载 / 1000 kg 动载、散热功耗、IP/EMC 与门型匹配、脚轮与接地缺件、空 U 位气流 |
 | 色板即时预览 | RAL 色板 + 自定义取色，框架色 / 门色独立 |
 | 开孔、文字、图片 / Logo 定制 | 定制开孔面板、文字丝印、Logo 铭牌，丝印文字可编辑 |
-| 物料清单 BOM / 3D PDF 规格书 | BOM 面板 + CSV（含公制与英制总重）+ PNG 视图快照 |
-| 2D/3D CAD 导出 | STL / GLB 开放 3D 格式（Three.js 官方导出器），可直接导入多数 CAD 软件 |
+| 物料清单 BOM / 规格书 | BOM 面板 + CSV（含公制与英制总重）+ A3 多页 PDF 工程报告 |
+| 2D/3D CAD 导出 | STL / GLB 网格 + STEP AP214 解析 B-rep 实体（`.stp`），可直接导入多数 CAD 软件 |
 | 保存配置、作为新项目基线 | localStorage 自动保存 + JSON 配置导入 / 导出 |
 
 额外能力：等轴测 / 前 / 后 / 侧 / 顶视图、爆炸图、线框模式、尺寸标注与 U 位刻度、部件拾取高亮、颜色与丝印编辑、上移下移 / 复制 / 删除。
@@ -84,7 +88,7 @@ npm run preview    # 预览构建产物
 2. **组件库**：按分类筛选或搜索，拖到 3D 视图的目标 U 位；也可点 `+` 自动放到空位。
 3. **属性**：重命名该层、修改起始 U 位 / U 高 / 深度 / 颜色 / 丝印；拖动列表行或点 ▲▼ 调整顺序（U 位自动重排），也可上移 / 下移 1U、复制、删除。
 4. **检查**：实时查看错误与提示，点击条目可定位部件。
-5. **BOM / 导出**：查看物料清单，导出 JSON / CSV / PNG / STL / GLB。
+5. **BOM / 导出**：查看物料清单，导出 JSON / CSV / PNG / STL / GLB / STP / PDF。
 
 左键旋转、滚轮缩放、右键平移；点击部件选中；`Delete` 删除选中部件，`Esc` 取消选中。
 
@@ -97,6 +101,12 @@ npm run preview    # 预览构建产物
 | `.png` | 当前 3D 视图快照 |
 | `.stl` | 二进制 STL 网格 |
 | `.glb` | glTF 2.0 二进制模型 |
+| `.stp` | ISO 10303-21 AP214 STEP 解析 B-rep 实体（与 `.step` 后缀等价） |
+| `.pdf` | A3 横向多页工程报告 |
+
+**STEP 说明**：不是三角面片网格。场景中的轴对齐长方体被逐个写成由 6 个 `PLANE` 面 + `LINE` 边构成的封闭 `MANIFOLD_SOLID_BREP`，单位 mm，Z 向上、机柜正面朝 −Y，按部件分命名图层。因此在 CAD 中是可测量、可剖切、可布尔运算的实体，且**零运行时依赖**（无需 OCCT / WASM）。不包含：丝印贴图、U 位方孔实例、圆柱装饰件（脚轮 / 旋钮）、颜色。无论当前是否开启爆炸图，导出的都是装配态。
+
+**PDF 说明**：3 页起（BOM 超过 19 行自动分页），含 3D 渲染快照、机架规格表、U 位排布正视图、合理性检查与资源利用率、装配明细、BOM 与合计；语言与单位跟随当前界面。实现为 Canvas 高分辨率页面 + 手写 PDF 1.4 容器嵌入 JPEG，零运行时依赖。**这是页面图册式报告，不是可搜索文本 PDF，也不是可旋转的交互式 3D PDF**——后者依赖闭源 PRC / U3D 格式。
 
 价格为占位参考值，不构成报价。
 
@@ -105,7 +115,7 @@ npm run preview    # 预览构建产物
 ```
 index.html              静态 UI 骨架（data-i18n）
 src/main.ts             状态 → 面板 → 3D 场景装配、全部交互
-src/core/               types / state / standards / units / i18n / catalog / validation / bom / export
+src/core/               types / state / standards / units / i18n / catalog / validation / bom / export / step / pdf
 src/scene/              Viewer（相机、拾取、视图、标注）/ builders（参数化几何）
 src/ui/panels.ts        向导、组件库、属性、检查、BOM、状态栏、帮助
 src/styles.css          深色工业风布局
@@ -122,11 +132,13 @@ docs/screenshots/       浏览器实测截图
 | typescript | 5.9.x | Apache-2.0 |
 | @types/three | 0.187.0 | MIT |
 
-本项目代码 **MIT**（见 `LICENSE`）。
+本项目代码 **MIT**（见 `LICENSE`）。运行时零新增依赖；STEP / PDF 导出均为自研纯 TypeScript 实现。
 
 ### 验证
 
-`npm run build` 通过；Chromium 无头浏览器实测覆盖：单位换算（600 mm ⇄ 23.62 in、`24in` 输入解析为 609.6 mm）、中英切换、拖放到 U30/U21/U11、U 位冲突拦截、JSON 导出回载、5 种导出文件生成、爆炸图与前视图；新增功能另测 4 类测试组件默认值、U 高 / 深度编辑与冲突自动避让、900 mm ⇄ 35.43 in、逐层重命名、▲▼ 与拖放两种排序后的 U 位重排、超深触发检查错误、中英 / 公英制切换、JSON 回载还原自定义字段，控制台零错误。截图见 `docs/screenshots/`。
+`npm run build` 通过；Chromium 无头浏览器实测覆盖：单位换算（600 mm ⇄ 23.62 in、`24in` 输入解析为 609.6 mm）、中英切换、拖放到 U30/U21/U11、U 位冲突拦截、JSON 导出回载、7 种导出文件生成、爆炸图与前视图；新增功能另测 4 类测试组件默认值、U 高 / 深度编辑与冲突自动避让、900 mm ⇄ 35.43 in、逐层重命名、▲▼ 与拖放两种排序后的 U 位重排、超深触发检查错误、中英 / 公英制切换、JSON 回载还原自定义字段，控制台零错误。
+
+STEP / PDF 专项验证：用 `occt-import-js`（OpenCascade WASM）解析 `.stp`，得到 **100 个 B-rep 实体 / 600 个解析平面 / 1200 个三角形**，包围盒 604 × 1038 × 2031 mm，且爆炸视图下导出的包围盒与装配态完全一致；用 `PyMuPDF` 解析 `.pdf`，得到 **3 页 A3 横向（1191 × 842 pt）**，每页图像正常渲染。中英双语与公英制各导出一份，中文自定义名走 STEP `\X2\` 编码无乱码。截图见 `docs/screenshots/`。
 
 ---
 
@@ -150,8 +162,8 @@ The workflow was studied from the public documentation of the [nVent SCHROFF Var
 | Plausibility checks | U collisions, out-of-range, device depth, 1600 kg static / 1000 kg dynamic load, cooling budget, door vs IP/EMC, missing castors/grounding, open-U airflow |
 | Live colour palette | RAL swatches + custom picker, separate frame and door colours |
 | Cut-outs, text, logo customisation | Cut-out panel, silk-screen text, logo nameplate with editable text |
-| BOM / 3D PDF datasheet | BOM panel + CSV (metric and imperial totals) + PNG snapshot |
-| 2D/3D CAD export | STL / GLB open 3D formats via Three.js official exporters |
+| BOM / datasheet | BOM panel + CSV (metric and imperial totals) + multi-page A3 PDF engineering report |
+| 2D/3D CAD export | STL / GLB meshes plus STEP AP214 analytic B-rep solids (`.stp`) |
 | Save configurations / reuse as baseline | localStorage auto-save + JSON import / export |
 
 Also: isometric / front / rear / side / top views, exploded view, wireframe, dimension annotations and U ruler, pick highlighting, per-part colour/label editing, move / duplicate / delete.
@@ -192,7 +204,7 @@ npm run preview    # serve the build
 2. **Component Library** — filter or search, then drag onto a U position in the 3D view (or click `+`).
 3. **Inspector** — rename the layer; edit start U / U height / depth / colour / silk-screen; drag rows or use ▲▼ to reorder (U positions reflow), or move 1U / duplicate / delete.
 4. **Checks** — live errors and warnings; click an entry to select the part.
-5. **BOM / Export** — review the bill of materials and export JSON / CSV / PNG / STL / GLB.
+5. **BOM / Export** — review the bill of materials and export JSON / CSV / PNG / STL / GLB / STP / PDF.
 
 Left-drag orbits, wheel zooms, right-drag pans. `Delete` removes the selection, `Esc` clears it.
 
@@ -205,6 +217,12 @@ Left-drag orbits, wheel zooms, right-drag pans. `Delete` removes the selection, 
 | `.png` | Current 3D viewport snapshot |
 | `.stl` | Binary STL mesh |
 | `.glb` | glTF 2.0 binary model |
+| `.stp` | ISO 10303-21 AP214 STEP analytic B-rep solids (same format as `.step`) |
+| `.pdf` | Multi-page A3 landscape engineering report |
+
+**About STEP**: this is not a triangulated mesh. Every axis-aligned box in the scene is emitted as a closed `MANIFOLD_SOLID_BREP` built from six `PLANE` faces bounded by `LINE` edges, in millimetres, Z-up with the cabinet front facing −Y, grouped into named layers. CAD tools therefore receive measurable, sectionable, boolean-able solids — with **no runtime dependency** (no OCCT / WASM). Excluded: silk-screen textures, U-hole instances, turned decorations (casters / knobs) and colours. The assembled state is always exported, even while the exploded view is active.
+
+**About PDF**: three or more pages (BOM pages are added every 19 rows) containing a 3D snapshot, cabinet specification, front U allocation drawing, plausibility checks and utilisation meters, an assembly schedule, and the BOM with totals. Language and units follow the active UI. It is rendered on a high-resolution canvas and embedded as JPEG in a hand-written PDF 1.4 container, again with no runtime dependency. **This is a page-image report — not a searchable-text PDF and not a rotatable interactive 3D PDF**; the latter requires the proprietary PRC / U3D formats.
 
 Prices are indicative placeholders, not a quotation.
 
@@ -213,7 +231,7 @@ Prices are indicative placeholders, not a quotation.
 ```
 index.html              static UI skeleton (data-i18n)
 src/main.ts             state -> panels -> 3D scene wiring, all interactions
-src/core/               types / state / standards / units / i18n / catalog / validation / bom / export
+src/core/               types / state / standards / units / i18n / catalog / validation / bom / export / step / pdf
 src/scene/              Viewer (camera, picking, views, dimensions) / builders (parametric geometry)
 src/ui/panels.ts        wizard, library, inspector, checks, BOM, status bar, help
 src/styles.css          dark industrial layout
@@ -223,8 +241,10 @@ docs/screenshots/       browser verification screenshots
 
 ### Stack & licence
 
-three 0.187.0 (MIT), Vite 7.x (MIT), TypeScript 5.9.x (Apache-2.0), @types/three 0.187.0 (MIT). Project code is **MIT** (`LICENSE`).
+three 0.187.0 (MIT), Vite 7.x (MIT), TypeScript 5.9.x (Apache-2.0), @types/three 0.187.0 (MIT). Project code is **MIT** (`LICENSE`). No new runtime dependencies: the STEP and PDF exporters are pure TypeScript.
 
 ### Verification
 
-`npm run build` passes. Headless Chromium tests covered unit conversion, bilingual switching, drag placement onto U30/U21/U11, U-collision rejection, JSON round-trip, all five export formats, exploded and front views; plus the new configurable parts (default values, U-height / depth edits with collision avoidance, 900 mm ⇄ 35.43 in), per-layer rename, ▲▼ and drag reordering, oversize-depth check errors, and JSON round-trip of all custom fields — zero console errors. Screenshots are in `docs/screenshots/`.
+`npm run build` passes. Headless Chromium tests covered unit conversion, bilingual switching, drag placement onto U30/U21/U11, U-collision rejection, JSON round-trip, all seven export formats, exploded and front views; plus the configurable parts (default values, U-height / depth edits with collision avoidance, 900 mm ⇄ 35.43 in), per-layer rename, ▲▼ and drag reordering, oversize-depth check errors, and JSON round-trip of all custom fields — zero console errors.
+
+STEP / PDF specific checks: `occt-import-js` (OpenCascade WASM) parses the `.stp` into **100 B-rep solids / 600 analytic faces / 1200 triangles** with a 604 × 1038 × 2031 mm bounding box; exported while exploded, the bounding box is identical to the assembled state. `PyMuPDF` opens the `.pdf` as **3 A3 landscape pages (1191 × 842 pt)** with every page image rendering correctly. Both Chinese and English reports were exported in metric and imperial modes; CJK custom names use STEP `\X2\` encoding without mojibake. Screenshots are in `docs/screenshots/`.

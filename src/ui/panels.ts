@@ -380,7 +380,7 @@ export function showHelp(): void {
       <li>${L('「框架向导」定义高度 / 宽度 / 深度 / Xf-C 凹槽 → 生成 3D 框架。', 'Use the Frame Wizard to define height / width / depth / Xf-C setbacks → the 3D frame is generated.')}</li>
       <li>${L('「组件库」拖放部件到 3D 视图的目标 U 位，或点 + 自动找空位。', 'Drag parts from the Component Library onto a U position in the 3D view, or click + for auto-placement.')}</li>
       <li>${L('「属性」修改组件名称、U 位、U 高、深度、颜色、丝印文字；「检查」实时做合理性校验。', 'Edit the layer name, U position, U height, depth, colour and silk-screen text in Inspector; Checks validates live.')}</li>
-      <li>${L('「BOM」查看物料清单；顶部「导出」可输出 JSON / CSV / PNG / STL / GLB。', 'Review the BOM; the top Export menu writes JSON / CSV / PNG / STL / GLB.')}</li>
+      <li>${L('「BOM」查看物料清单；顶部「导出」可输出 JSON / CSV / PNG / STL / GLB / STP / PDF。', 'Review the BOM; the top Export menu writes JSON / CSV / PNG / STL / GLB / STP / PDF.')}</li>
     </ol>
     <h3>${L('单位与标准', 'Units & standards')}</h3>
     <table>
@@ -400,6 +400,15 @@ export function showHelp(): void {
         'Each layer can be renamed in Inspector; the name shows in the list, BOM spec and the 3D nameplate.')}</li>
       <li>${L('拖动「已装配组件」列表的行，或点 ▲▼ 调整顺序，机柜内 U 位会自动重排并避让冲突。',
         'Drag rows in Assembled Components or use ▲▼; U positions reflow automatically with collision avoidance.')}</li>
+    </ul>
+    <h3>${L('导出格式', 'Export formats')}</h3>
+    <ul>
+      <li>${L('JSON 可回载还原配置；CSV 为物料清单，PNG 为视图快照，STL / GLB 为三维网格与场景。',
+        'JSON restores a configuration; CSV is the BOM, PNG a view snapshot, STL / GLB the 3D mesh and scene.')}</li>
+      <li>${L('STP：ISO 10303-21 AP214 解析 B-rep 实体（非三角面片），单位 mm，Z 向上、机柜正面朝 −Y，按部件分图层命名。不含丝印贴图、U 位孔实例、圆柱装饰件（脚轮 / 旋钮）与颜色；无论当前是否开启爆炸图，导出的都是装配态。',
+        'STP: ISO 10303-21 AP214 analytic B-rep solids (not a faceted mesh), in mm, Z-up with the cabinet front facing −Y, grouped into named layers. Silk-screen textures, U-hole instances, turned decorations (casters / knobs) and colours are omitted; the assembled state is exported even while the exploded view is active.')}</li>
+      <li>${L('PDF：A3 横向多页工程报告（3D 快照、机架规格、U 位排布、检查与利用率、装配明细、BOM），语言与单位跟随当前界面。为高分辨率页面图册，不是可搜索文本 PDF，也不是交互式 3D PDF。',
+        'PDF: a multi-page A3 landscape engineering report (3D snapshot, cabinet spec, U allocation, checks and utilisation, assembly schedule, BOM), following the active language and unit system. It is a high-resolution page report, not a searchable-text PDF nor an interactive 3D PDF.')}</li>
     </ul>
     <h3>${L('操作提示', 'Tips')}</h3>
     <p>${L('左键旋转 / 滚轮缩放 / 右键平移；点击部件选中；切到「组件库」后可直接拖拽。配置自动保存在浏览器本地，也可用 JSON 文件导入导出。',

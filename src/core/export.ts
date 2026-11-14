@@ -6,7 +6,7 @@ import { cabinetHeight } from './standards';
 import { displayLength, displayMass, standardLabel } from './units';
 import { L } from './i18n';
 
-function triggerDownload(filename: string, blob: Blob): void {
+export function triggerDownload(filename: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -17,7 +17,7 @@ function triggerDownload(filename: string, blob: Blob): void {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-function safeName(name: string): string {
+export function safeName(name: string): string {
   return (name || 'btf-rack').replace(/[^\w.-]+/g, '_');
 }
 

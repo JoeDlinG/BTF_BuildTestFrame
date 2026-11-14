@@ -7,9 +7,12 @@ import { parseLength } from './core/units';
 import { PRESETS } from './core/standards';
 import { catalogById, clampDepth, clampUSize } from './core/catalog';
 import { buildBom } from './core/bom';
+import { validate } from './core/validation';
 import {
   exportBomCsv, exportGlb, exportPng, exportProjectJson, exportStl, readProjectFile,
 } from './core/export';
+import { exportStep } from './core/step';
+import { exportPdf } from './core/pdf';
 import { Viewer } from './scene/Viewer';
 import {
   renderBom, renderChecks, renderInspector, renderLibrary, renderStatus,
@@ -131,12 +134,21 @@ document.addEventListener('click', (e) => {
 });
 $('btn-help').addEventListener('click', showHelp);
 
-// Clone the model and drop instanced meshes for CAD/glTF exporters.
+// Clone the model, drop instanced meshes (U holes) and restore the assembled
+// (non-exploded) position of every part so CAD exports are always the real
+// assembly, even when the user currently has the exploded view enabled.
 function modelForExport(): THREE.Group {
-  const root = viewer.model.clone(true);
+  const src = viewer.model;
+  const root = src.clone(true);
   const drop: THREE.Object3D[] = [];
   root.traverse((o) => { if ((o as THREE.InstancedMesh).isInstancedMesh) drop.push(o); });
   drop.forEach((o) => o.removeFromParent());
+  src.children.forEach((part, i) => {
+    const base = (part.userData as { base?: THREE.Vector3 }).base;
+    const target = root.children[i];
+    if (target) target.position.copy(base ?? new THREE.Vector3());
+  });
+  root.updateMatrixWorld(true);
   return root;
 }
 
@@ -149,9 +161,17 @@ async function doExport(kind: string): Promise<void> {
       case 'png': exportPng(viewer.capture(), s.config); break;
       case 'stl': exportStl(modelForExport(), s.config); break;
       case 'glb': await exportGlb(modelForExport(), s.config); break;
+      case 'step': exportStep(modelForExport(), s.config); break;
+      case 'pdf': exportPdf({
+        state: s,
+        rows: buildBom(s.config, s.unit),
+        checks: validate(s),
+        view: viewer.capture(),
+      }); break;
       default: return;
     }
-    toast(L(`已导出 ${kind.toUpperCase()} 文件`, `Exported ${kind.toUpperCase()} file`), 'success');
+    const label = kind === 'step' ? 'STEP / STP' : kind.toUpperCase();
+    toast(L(`已导出 ${label} 文件`, `Exported ${label} file`), 'success');
   } catch (err) {
     console.error(err);
     toast(L(`导出失败：${kind.toUpperCase()}`, `Export failed: ${kind.toUpperCase()}`), 'error');

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { AppState, FrameConfig, PlacedItem } from '../core/types';
+import type { AppState, FrameConfig, LocalizedText, PlacedItem } from '../core/types';
 import { catalogById, itemDepth, itemUSize, occupiesU } from '../core/catalog';
 import { cabinetHeight, MOUNT_CENTER_MM, PANEL_19_MM, RAIL_OPENING_MM, U_MM } from '../core/standards';
 
@@ -112,15 +112,22 @@ function addLabelPlane(parent: THREE.Object3D, text: string, w: number, h: numbe
 interface Part extends THREE.Group {
   userData: {
     itemId?: string;
+    /** Human readable group name, consumed by the STEP exporter's layer tree. */
+    label?: LocalizedText;
     base: THREE.Vector3;
     explodeVec: THREE.Vector3;
     [k: string]: unknown;
   };
 }
 
-function makePart(parent: THREE.Group, explodeVec: [number, number, number], itemId?: string): Part {
+function makePart(
+  parent: THREE.Group,
+  explodeVec: [number, number, number],
+  itemId?: string,
+  label?: LocalizedText,
+): Part {
   const g = new THREE.Group() as Part;
-  g.userData = { itemId, base: new THREE.Vector3(), explodeVec: new THREE.Vector3(...explodeVec) };
+  g.userData = { itemId, label, base: new THREE.Vector3(), explodeVec: new THREE.Vector3(...explodeVec) };
   parent.add(g);
   return g;
 }

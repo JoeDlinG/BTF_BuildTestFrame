@@ -31,6 +31,8 @@ const DICT: Record<string, LocalizedText> = {
   'export.png': { zh: '视图快照 (.png)', en: 'View snapshot (.png)' },
   'export.stl': { zh: '3D 模型 (.stl)', en: '3D model (.stl)' },
   'export.glb': { zh: '3D 模型 (.glb)', en: '3D model (.glb)' },
+  'export.step': { zh: 'CAD 实体模型 (.stp)', en: 'CAD solids / STEP (.stp)' },
+  'export.pdf': { zh: '工程报告 (.pdf)', en: 'Engineering report (.pdf)' },
 };
 
 export function getLang(): Lang {
