@@ -1,5 +1,8 @@
-import type { AppState } from '../core/types';
-import { CATALOG, CATEGORY_ORDER, catalogById, categoryLabel, occupiesU } from '../core/catalog';
+import type { AppState, PlacedItem } from '../core/types';
+import {
+  CATALOG, CATEGORY_ORDER, catalogById, categoryLabel, isConfigurable,
+  itemDepth, itemDisplayName, itemOccupiesU, itemUSize, occupiesU,
+} from '../core/catalog';
 import {
   cabinetHeight, DEPTH_OPTIONS, HEIGHT_U_OPTIONS, PRESETS, RAL_COLORS,
   loadLimit, rackHeight, usableDepth, U_MM, WIDTH_OPTIONS,
@@ -162,15 +165,18 @@ export function renderLibrary(s: AppState): string {
 
   const items = CATALOG.filter((c) => s.libraryCat === 'all' || c.category === s.libraryCat);
   const itemHtml = items.map((c) => {
-    const specParts = [
-      c.uSize > 0 ? `${c.uSize}U` : '0U',
-      c.depth > 0 ? displayLength(c.depth, s.unit, s.unit === 'metric' ? 0 : 1) : '-',
-      displayMass(c.weight, s.unit, 1),
-    ];
+    const sizeText = c.uOptions
+      ? `${Math.min(...c.uOptions)}–${Math.max(...c.uOptions)}U ${L('可选', 'selectable')}`
+      : c.uRange ? `${c.uRange[0]}–${c.uRange[1]}U`
+        : c.uSize > 0 ? `${c.uSize}U` : '0U';
+    const depthText = c.depthRange
+      ? L('深度可调', 'adjustable depth')
+      : c.depth > 0 ? displayLength(c.depth, s.unit, s.unit === 'metric' ? 0 : 1) : '-';
+    const specParts = [sizeText, depthText, displayMass(c.weight, s.unit, 1)];
     return `<div class="lib-item" draggable="true" data-catalog="${c.id}" title="${esc(loc(c.desc))}">
       <div class="lib-icon">${esc(c.icon)}</div>
       <div class="lib-info">
-        <div class="lib-name">${esc(loc(c.name))}</div>
+        <div class="lib-name">${esc(loc(c.name))}${isConfigurable(c) ? `<span class="badge-config">${L('可调', 'ADJ')}</span>` : ''}</div>
         <div class="lib-spec">${esc(specParts.join(' · '))}</div>
       </div>
       <button type="button" class="lib-add" data-add="${c.id}" title="${L('添加到机柜', 'Add to rack')}">+</button>
@@ -191,31 +197,63 @@ export function renderInspector(s: AppState): string {
   const selected = items.find((i) => i.id === s.selectedId);
   const c = selected ? catalogById(selected.catalogId) : null;
 
+  const mounted = items.filter(itemOccupiesU).sort((a, b) => b.u - a.u);
+  const others = items.filter((i) => !itemOccupiesU(i));
+  const row = (i: PlacedItem, rank: number, total: number, sortable: boolean): string => {
+    const ci = catalogById(i.catalogId);
+    if (!ci) return '';
+    const size = itemUSize(i);
+    const depth = itemDepth(i);
+    const tag = sortable
+      ? `U${i.u}${size > 1 ? `–${i.u + size - 1}` : ''}`
+      : loc(categoryLabel(ci.category));
+    const name = itemDisplayName(i, s.lang);
+    const spec = `${size}U${depth > 0 ? ` · ${displayLength(depth, s.unit)}` : ''}`;
+    const orderButtons = sortable ? `
+      <button type="button" class="order-btn" data-order="up" data-order-id="${i.id}" title="${L('上移一层', 'Move up one layer')}" ${rank === 0 ? 'disabled' : ''}>▲</button>
+      <button type="button" class="order-btn" data-order="down" data-order-id="${i.id}" title="${L('下移一层', 'Move down one layer')}" ${rank === total - 1 ? 'disabled' : ''}>▼</button>` : '';
+    return `<div class="item-row ${i.id === s.selectedId ? 'selected' : ''}" data-select="${i.id}"
+      ${sortable ? `draggable="true" data-order-id="${i.id}"` : ''} title="${esc(name)} · ${esc(spec)}">
+      <span class="u-tag">${esc(tag)}</span>
+      <span class="name">${esc(name)}<em class="row-spec">${esc(spec)}</em></span>
+      ${orderButtons}
+      <button type="button" class="del" data-remove="${i.id}" title="${L('删除', 'Delete')}">×</button>
+    </div>`;
+  };
   const list = items.length
-    ? [...items].sort((a, b) => b.u - a.u).map((i) => {
-      const ci = catalogById(i.catalogId);
-      if (!ci) return '';
-      const tag = occupiesU(ci) ? `U${i.u}${ci.uSize > 1 ? `–${i.u + ci.uSize - 1}` : ''}` : loc(categoryLabel(ci.category));
-      return `<div class="item-row ${i.id === s.selectedId ? 'selected' : ''}" data-select="${i.id}">
-        <span class="u-tag">${esc(tag)}</span>
-        <span class="name">${esc(loc(ci.name))}${i.label ? ` · ${esc(i.label)}` : ''}</span>
-        <button type="button" class="del" data-remove="${i.id}" title="${L('删除', 'Delete')}">×</button>
-      </div>`;
-    }).join('')
+    ? mounted.map((i, idx) => row(i, idx, mounted.length, true)).join('')
+      + others.map((i) => row(i, 0, 0, false)).join('')
     : `<div class="empty-state">${L('尚未添加组件', 'No components yet')}<br/>${L('从「组件库」拖放部件开始拼装', 'Drag parts from the Component Library')}</div>`;
 
   let detail = '';
   if (selected && c) {
-    const uEditable = occupiesU(c);
+    const uEditable = itemOccupiesU(selected);
+    const size = itemUSize(selected);
+    const depth = itemDepth(selected);
+    const sizeField = c.uOptions
+      ? `<div class="field"><label>${L('机架高度 (U)', 'Rack height (U)')}</label>
+          <select class="select" data-item="uSize">${c.uOptions.map((n) => `<option value="${n}" ${n === size ? 'selected' : ''}>${n}U · ${displayLength(n * U_MM, s.unit)}</option>`).join('')}</select></div>`
+      : c.uRange
+        ? `<div class="field"><label>${L('机架高度 (U)', 'Rack height (U)')}<span class="field-sub">${c.uRange[0]}–${c.uRange[1]}U</span></label>
+            <span style="display:flex;align-items:center;gap:5px"><input class="input" data-item="uSize" type="number" min="${c.uRange[0]}" max="${c.uRange[1]}" value="${size}" style="width:64px"/><span class="input-unit">U · ${displayLength(size * U_MM, s.unit)}</span></span></div>`
+        : `<div class="field"><label>${L('机架高度', 'Rack height')}</label><strong>${size}U · ${displayLength(size * U_MM, s.unit)}</strong></div>`;
+    const depthField = c.depthRange
+      ? `<div class="field"><label>${L('设备深度', 'Device depth')}<span class="field-sub">${L('可用', 'usable')} ${displayLength(usableDepth(frame), s.unit)}</span></label>
+          <span style="display:flex;align-items:center;gap:5px"><input class="input" data-item="depth" value="${lenValue(depth, s.unit)}"/><span class="input-unit">${lengthUnit(s.unit)}</span></span></div>
+        <p class="note" style="margin:-4px 0 10px">${L('可输入 600mm / 24in 等带单位数值，切换单位会自动换算。', 'Unit-suffixed values such as 600mm / 24in are accepted; switching units converts them.')}</p>`
+      : `<div class="field"><label>${L('设备深度', 'Device depth')}</label><strong>${depth > 0 ? displayLength(depth, s.unit) : '-'}</strong></div>`;
     detail = `<div class="section">
       <div class="section-title">${L('选中部件', 'SELECTED COMPONENT')}</div>
       <div class="card">
-        <div class="field"><label>${L('名称', 'Name')}</label><strong>${esc(loc(c.name))}</strong></div>
+        <div class="field"><label>${L('组件名称（可重命名）', 'Layer name (editable)')}</label>
+          <input class="input wide" data-item="name" value="${esc(selected.name || '')}" placeholder="${esc(loc(c.name))}" /></div>
         <div class="field"><label>${L('物料号', 'Part No.')}</label><span class="lib-spec">${esc(c.partNo)}</span></div>
         ${uEditable ? `<div class="field"><label>${L('起始 U 位', 'Start U')}</label>
           <span style="display:flex;align-items:center;gap:5px"><input class="input" data-item="u" value="${selected.u}" style="width:64px"/><span class="input-unit">/ ${frame.heightU}U</span></span></div>` : ''}
-        <div class="field"><label>${L('标识文字', 'Label text')}</label>
-          <input class="input wide" data-item="label" value="${esc(selected.label || '')}" placeholder="${L('丝印 / 备注', 'Silk-screen / note')}" /></div>
+        ${sizeField}
+        ${depthField}
+        <div class="field"><label>${L('丝印 / 备注', 'Silk-screen / note')}</label>
+          <input class="input wide" data-item="label" value="${esc(selected.label || '')}" placeholder="${L('面板丝印文字', 'Panel legend')}" /></div>
         <div class="field"><label>${L('部件颜色', 'Colour')}</label>
           <input type="color" data-item="color" value="${esc(selected.color || '#3c4857')}" style="width:52px;height:26px;background:none;border:1px solid var(--line);border-radius:4px"/></div>
         <p class="note">${esc(loc(c.desc))}</p>
@@ -229,9 +267,13 @@ export function renderInspector(s: AppState): string {
     </div>`;
   }
 
+  const orderHint = mounted.length > 1
+    ? `<p class="note" style="margin:0 0 8px">${L('拖动行或点 ▲▼ 调整顺序，组件在机柜中的 U 位会同步重排。', 'Drag a row or use ▲▼ to reorder; U positions in the rack reflow automatically.')}</p>`
+    : '';
   return `${detail}
   <div class="section">
     <div class="section-title">${L('已装配组件', 'ASSEMBLED COMPONENTS')}<span class="hint">${items.length}</span></div>
+    ${orderHint}
     ${list}
     ${items.length ? `<button type="button" class="btn sm" data-act="clear" style="margin-top:8px">${L('清空组件', 'Clear all')}</button>` : ''}
   </div>
@@ -316,12 +358,13 @@ export function renderStatus(s: AppState): { dot: string; text: string; metrics:
 export function toast(message: string, kind: 'info' | 'success' | 'warn' | 'error' = 'info'): void {
   const host = document.getElementById('toast-host');
   if (!host) return;
+  while (host.children.length >= 3) host.firstElementChild?.remove();
   const el = document.createElement('div');
   el.className = `toast ${kind}`;
   el.textContent = message;
   host.appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .25s'; }, 3200);
-  setTimeout(() => el.remove(), 3600);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .25s'; }, 2600);
+  setTimeout(() => el.remove(), 3000);
 }
 
 export function showHelp(): void {
@@ -336,7 +379,7 @@ export function showHelp(): void {
     <ol>
       <li>${L('「框架向导」定义高度 / 宽度 / 深度 / Xf-C 凹槽 → 生成 3D 框架。', 'Use the Frame Wizard to define height / width / depth / Xf-C setbacks → the 3D frame is generated.')}</li>
       <li>${L('「组件库」拖放部件到 3D 视图的目标 U 位，或点 + 自动找空位。', 'Drag parts from the Component Library onto a U position in the 3D view, or click + for auto-placement.')}</li>
-      <li>${L('「属性」修改 U 位、颜色、丝印文字；「检查」实时做合理性校验。', 'Edit U position, colour and silk-screen text in Inspector; Checks runs plausibility validation live.')}</li>
+      <li>${L('「属性」修改组件名称、U 位、U 高、深度、颜色、丝印文字；「检查」实时做合理性校验。', 'Edit the layer name, U position, U height, depth, colour and silk-screen text in Inspector; Checks validates live.')}</li>
       <li>${L('「BOM」查看物料清单；顶部「导出」可输出 JSON / CSV / PNG / STL / GLB。', 'Review the BOM; the top Export menu writes JSON / CSV / PNG / STL / GLB.')}</li>
     </ol>
     <h3>${L('单位与标准', 'Units & standards')}</h3>
@@ -349,6 +392,15 @@ export function showHelp(): void {
     </table>
     <p>${L('输入框支持带单位文本，如 600mm、24in、2′6″、0.6m；不带单位时按当前单位体系解释。',
       'Inputs accept unit suffixes such as 600mm, 24in, 2′6″, 0.6m; bare numbers follow the active unit system.')}</p>
+    <h3>${L('可配置组件与排序', 'Configurable parts & ordering')}</h3>
+    <ul>
+      <li>${L('「测试设备」分类：自定义测试机箱（1–12U、深度 200–1400 mm 可调）、示波器与 RF 测试仪（3 / 4 / 5U 可选）、可编程电源（1–5U 可选）。',
+        'Test Equipment: custom test chassis (1–12U, 200–1400 mm depth), oscilloscope and RF test set (3 / 4 / 5U), programmable PSU (1–5U).')}</li>
+      <li>${L('在「属性」里可为每层组件改名，名称显示在列表、BOM 规格与 3D 面板铭牌上。',
+        'Each layer can be renamed in Inspector; the name shows in the list, BOM spec and the 3D nameplate.')}</li>
+      <li>${L('拖动「已装配组件」列表的行，或点 ▲▼ 调整顺序，机柜内 U 位会自动重排并避让冲突。',
+        'Drag rows in Assembled Components or use ▲▼; U positions reflow automatically with collision avoidance.')}</li>
+    </ul>
     <h3>${L('操作提示', 'Tips')}</h3>
     <p>${L('左键旋转 / 滚轮缩放 / 右键平移；点击部件选中；切到「组件库」后可直接拖拽。配置自动保存在浏览器本地，也可用 JSON 文件导入导出。',
       'Left-drag orbits, wheel zooms, right-drag pans. Click a part to select it. Configurations are auto-saved locally and can be exchanged as JSON files.')}</p>

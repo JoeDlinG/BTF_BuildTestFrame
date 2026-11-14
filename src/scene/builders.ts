@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { AppState, FrameConfig, PlacedItem } from '../core/types';
-import { catalogById, occupiesU } from '../core/catalog';
+import { catalogById, itemDepth, itemUSize, occupiesU } from '../core/catalog';
 import { cabinetHeight, MOUNT_CENTER_MM, PANEL_19_MM, RAIL_OPENING_MM, U_MM } from '../core/standards';
 
 /** Scene scale: 1 mm -> 0.01 world units (1 unit = 100 mm). */
@@ -362,22 +362,23 @@ function buildComponent(
         // small door / rail mounted hardware
         addBox(g, 46, 70, 24, railMat, d.W / 2 - 110, d.H * 0.55, d.D / 2 + 4);
         if (c.geom === 'label' || c.geom === 'logo') {
-          addLabelPlane(g, item.label || c.partNo, 120, 32, d.W / 2 - 110, d.H * 0.55 + 55, d.D / 2 + 18);
+          addLabelPlane(g, item.name || item.label || c.partNo, 120, 32, d.W / 2 - 110, d.H * 0.55 + 55, d.D / 2 + 18);
         }
       }
     }
     return;
   }
 
-  // ---- U-mounted component ----
-  const h = c.uSize * U_MM - 3;
+  // ---- U-mounted component (size / depth may be overridden per instance) ----
+  const size = itemUSize(item);
+  const h = size * U_MM - 3;
   const yBottom = d.rb + (item.u - 1) * U_MM;
-  const cy = yBottom + c.uSize * U_MM / 2;
+  const cy = yBottom + size * U_MM / 2;
   const isRear = item.slot === 'rear';
   const railZ = isRear ? d.rrz : d.frz;
   const sign = isRear ? -1 : 1;
   const faceZ = railZ + sign * 2;
-  const deviceDepth = Math.max(40, c.depth || 120);
+  const deviceDepth = Math.max(40, itemDepth(item) || 120);
   const bodyZ = railZ - sign * deviceDepth / 2;
 
   // chassis + 19" front panel
@@ -386,10 +387,64 @@ function buildComponent(
     ? mat(item.color || f.color, { metalness: 0.6 }) : faceMat;
   addBox(g, PANEL_19_MM, h, 4, panelMat, 0, cy, faceZ);
   for (const sx of [-1, 1]) {
-    addBox(g, 22, c.uSize * 12, 8, railMat, sx * (PANEL_19_MM / 2 - 11), cy, faceZ + sign * 4);
+    addBox(g, 22, size * 12, 8, railMat, sx * (PANEL_19_MM / 2 - 11), cy, faceZ + sign * 4);
+  }
+  // Bright identity strip: configurable test gear stays distinguishable even
+  // behind the semi-transparent front door. MeshBasicMaterial ignores lighting.
+  const gearAccent: Record<string, number> = {
+    chassis: 0xffa94d, scope: 0x4ce6bd, rf: 0x6fb8ff, psu: 0xb0e57c,
+  };
+  if (gearAccent[c.geom] !== undefined) {
+    const stripMat = new THREE.MeshBasicMaterial({ color: gearAccent[c.geom] });
+    addBox(g, PANEL_19_MM - 40, 7, 3, stripMat, 0, cy + h * 0.42, faceZ + sign * 5);
+    addBox(g, 30, 7, 3, stripMat, -PANEL_19_MM / 2 + 34, cy - h * 0.42, faceZ + sign * 5);
   }
 
   switch (c.geom) {
+    case 'chassis': {
+      // vent slots, two rack handles and a status LED
+      for (let i = 0; i < 9; i++) {
+        addBox(g, 20, Math.min(h * 0.34, 20), 4, portMat, -160 + i * 38, cy + h * 0.08, faceZ + sign * 3);
+      }
+      for (const sx of [-1, 1]) {
+        addBox(g, 26, Math.min(h * 0.55, 80), 18, railMat, sx * (PANEL_19_MM / 2 - 44), cy, faceZ + sign * 12);
+      }
+      addBox(g, 56, 9, 4, ledMat, 178, cy - h * 0.3, faceZ + sign * 3);
+      break;
+    }
+    case 'scope': {
+      const screenW = 210, screenH = Math.min(h * 0.6, 120);
+      addBox(g, screenW, screenH, 6, portMat, -60, cy, faceZ + sign * 5);
+      const trace = new THREE.MeshBasicMaterial({ color: 0x4ce6bd });
+      for (let i = 0; i < 10; i++) {
+        const yy = cy + Math.sin(i * 0.85) * screenH * 0.26;
+        addBox(g, screenW / 10 - 3, 6, 4, trace, -60 - screenW / 2 + 10 + i * (screenW / 10), yy, faceZ + sign * 9);
+      }
+      for (let i = 0; i < 4; i++) {
+        addCyl(g, 14, 8, railMat, 118 + (i % 2) * 48, cy + 34 - Math.floor(i / 2) * 52, faceZ + sign * 8, 'z');
+      }
+      for (let i = 0; i < 3; i++) addBox(g, 22, 9, 4, portMat, 105 + i * 34, cy - h * 0.34, faceZ + sign * 4);
+      break;
+    }
+    case 'rf': {
+      const screenW = 190, screenH = Math.min(h * 0.48, 95);
+      addBox(g, screenW, screenH, 6, portMat, -75, cy + h * 0.1, faceZ + sign * 5);
+      const grid = new THREE.MeshBasicMaterial({ color: 0x8fd0ff });
+      for (let i = 1; i <= 5; i++) {
+        addBox(g, 3, screenH - 8, 3, grid, -75 - screenW / 2 + i * screenW / 6, cy + h * 0.1, faceZ + sign * 9);
+      }
+      addCyl(g, 28, 10, railMat, 130, cy + 12, faceZ + sign * 9, 'z');
+      for (let i = 0; i < 3; i++) addCyl(g, 11, 9, darkMat, 70 + i * 42, cy - h * 0.3, faceZ + sign * 8, 'z');
+      break;
+    }
+    case 'psu': {
+      addBox(g, 150, Math.min(h * 0.46, 46), 6, portMat, -95, cy + h * 0.06, faceZ + sign * 5);
+      addLabelPlane(g, '0.00 V / 0.00 A', 140, 22, -95, cy + h * 0.06, faceZ + sign * 9);
+      for (const sx of [-1, 1]) addCyl(g, 13, 9, railMat, sx * 52, cy - h * 0.28, faceZ + sign * 8, 'z');
+      addCyl(g, 20, 10, darkMat, 150, cy, faceZ + sign * 9, 'z');
+      addBox(g, 26, 8, 4, ledMat, 150, cy + h * 0.3, faceZ + sign * 4);
+      break;
+    }
     case 'server': case 'ups': {
       const bays = c.uSize >= 2 ? 6 : 4;
       for (let i = 0; i < bays; i++) {
@@ -440,15 +495,17 @@ function buildComponent(
       break;
     }
     case 'logo': case 'label': {
-      addLabelPlane(g, item.label || c.partNo, PANEL_19_MM - 80, Math.min(h - 6, 34), 0, cy, faceZ + sign * 4, 0);
+      addLabelPlane(g, item.name || item.label || c.partNo, PANEL_19_MM - 80, Math.min(h - 6, 34), 0, cy, faceZ + sign * 4, 0);
       break;
     }
     case 'blank': break;
     default: break;
   }
 
-  if (item.label && (c.geom === 'server' || c.geom === 'switch')) {
-    addLabelPlane(g, item.label, 170, 16, -110, cy + h * 0.34, faceZ + sign * 5, 0);
+  // The per-layer rename is printed onto the front panel of every U component.
+  const nameText = (item.name || item.label || '').trim();
+  if (nameText && c.geom !== 'logo' && c.geom !== 'label') {
+    addLabelPlane(g, nameText, 220, 20, -100, cy + h * 0.34, faceZ + sign * 6, 0);
   }
 }
 

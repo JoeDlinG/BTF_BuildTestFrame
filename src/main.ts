@@ -5,7 +5,7 @@ import type { AppState, FrameConfig, ProjectConfig } from './core/types';
 import { applyStaticI18n, L, setLang } from './core/i18n';
 import { parseLength } from './core/units';
 import { PRESETS } from './core/standards';
-import { catalogById } from './core/catalog';
+import { catalogById, clampDepth, clampUSize } from './core/catalog';
 import { buildBom } from './core/bom';
 import {
   exportBomCsv, exportGlb, exportPng, exportProjectJson, exportStl, readProjectFile,
@@ -336,6 +336,8 @@ function selectItem(id: string): void {
 function bindSelection(host: HTMLElement): void {
   host.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
+    // Reorder buttons handle their own click; don't treat them as a row selection.
+    if (t.closest('[data-order]')) return;
     const remove = t.closest<HTMLElement>('[data-remove]');
     if (remove?.dataset.remove) {
       e.stopPropagation();
@@ -350,7 +352,13 @@ bindSelection(els.inspector);
 bindSelection(els.checks);
 
 els.inspector.addEventListener('click', (e) => {
-  const b = (e.target as HTMLElement).closest<HTMLElement>('[data-act]');
+  const t = e.target as HTMLElement;
+  const ob = t.closest<HTMLElement>('[data-order]');
+  if (ob?.dataset.order && ob.dataset.orderId) {
+    store.shiftOrder(ob.dataset.orderId, ob.dataset.order === 'up' ? -1 : 1);
+    return;
+  }
+  const b = t.closest<HTMLElement>('[data-act]');
   if (!b?.dataset.act) return;
   const id = store.state.selectedId;
   if (!id) return;
@@ -360,7 +368,7 @@ els.inspector.addEventListener('click', (e) => {
     case 'up': store.moveItem(id, item.u + 1); break;
     case 'down': store.moveItem(id, item.u - 1); break;
     case 'delete': store.removeItem(id); break;
-    case 'duplicate': store.addItem(item.catalogId, item.u, item.slot); break;
+    case 'duplicate': store.duplicateItem(id); break;
     case 'clear':
       if (confirm(L('清空所有已装配组件？', 'Remove all assembled components?'))) store.setItems([]);
       break;
@@ -368,24 +376,99 @@ els.inspector.addEventListener('click', (e) => {
 });
 
 els.inspector.addEventListener('change', (e) => {
-  const t = e.target as HTMLInputElement;
+  const t = e.target as HTMLInputElement | HTMLSelectElement;
   const key = t.dataset.item;
   const id = store.state.selectedId;
   if (!key || !id) return;
+  const item = store.state.config.items.find((i) => i.id === id);
+  const c = item ? catalogById(item.catalogId) : null;
   if (key === 'u') {
     const n = Number(t.value);
-    const before = store.state.config.items.find((i) => i.id === id)?.u;
+    const before = item?.u;
     store.moveItem(id, n);
     const after = store.state.config.items.find((i) => i.id === id)?.u;
     if (before === after && Number.isFinite(n)) {
       toast(L('该 U 位已被占用或超出范围', 'That U position is occupied or out of range'), 'warn');
       renderAll(store.state);
     }
+  } else if (key === 'name') {
+    const v = t.value.trim().slice(0, 60);
+    store.updateItem(id, { name: v || undefined });
   } else if (key === 'label') {
     store.updateItem(id, { label: t.value });
   } else if (key === 'color') {
     store.updateItem(id, { color: t.value });
+  } else if (key === 'uSize' && c) {
+    const n = clampUSize(c, Number(t.value));
+    const beforeU = item?.u;
+    if (!store.resizeItem(id, { uSize: n })) {
+      toast(L('空间不足，无法调整为所选 U 高', 'Not enough free U space for that height'), 'warn');
+      renderAll(store.state);
+    } else {
+      const afterU = store.state.config.items.find((i) => i.id === id)?.u;
+      if (beforeU !== undefined && afterU !== undefined && beforeU !== afterU) {
+        toast(L(`U 高改变后已自动移到 U${afterU} 以避开冲突`, `Height changed; auto-moved to U${afterU} to avoid overlap`), 'info');
+      }
+    }
+  } else if (key === 'depth' && c) {
+    const mmv = parseLength(t.value, store.state.unit);
+    if (mmv === null || !Number.isFinite(mmv)) {
+      toast(L('无法解析深度，请输入如 600mm / 24in', 'Cannot parse depth; try 600mm / 24in'), 'error');
+      renderAll(store.state);
+      return;
+    }
+    if (!store.resizeItem(id, { depth: clampDepth(c, mmv) })) {
+      toast(L('空间不足，无法调整该深度', 'Not enough space for that depth'), 'warn');
+      renderAll(store.state);
+    }
   }
+});
+
+// ---------------------------------------------------------------------------
+// Reorder the assembled list: HTML5 drag & drop plus the ▲▼ buttons.
+// The store re-assigns U positions so list order always equals rack order.
+// ---------------------------------------------------------------------------
+let orderDragId: string | null = null;
+
+function clearDragMarks(): void {
+  els.inspector.querySelectorAll('.item-row.dragging, .item-row.drag-over')
+    .forEach((el) => el.classList.remove('dragging', 'drag-over'));
+}
+
+els.inspector.addEventListener('dragstart', (e) => {
+  const row = (e.target as HTMLElement).closest<HTMLElement>('.item-row[draggable="true"]');
+  if (!row?.dataset.orderId || !e.dataTransfer) return;
+  orderDragId = row.dataset.orderId;
+  e.dataTransfer.setData('text/btf-order', orderDragId);
+  e.dataTransfer.effectAllowed = 'move';
+  row.classList.add('dragging');
+});
+els.inspector.addEventListener('dragover', (e) => {
+  if (!orderDragId) return;
+  const row = (e.target as HTMLElement).closest<HTMLElement>('.item-row[draggable="true"]');
+  if (!row) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  els.inspector.querySelectorAll('.item-row.drag-over')
+    .forEach((el) => el.classList.remove('drag-over'));
+  if (row.dataset.orderId !== orderDragId) row.classList.add('drag-over');
+});
+els.inspector.addEventListener('drop', (e) => {
+  if (!orderDragId) return;
+  e.preventDefault();
+  const row = (e.target as HTMLElement).closest<HTMLElement>('.item-row[draggable="true"]');
+  const targetId = row?.dataset.orderId;
+  const dragId = orderDragId;
+  clearDragMarks();
+  orderDragId = null;
+  if (targetId && targetId !== dragId) {
+    const ids = store.orderedUIds();
+    store.moveOrderTo(dragId, ids.indexOf(targetId));
+  }
+});
+els.inspector.addEventListener('dragend', () => {
+  clearDragMarks();
+  orderDragId = null;
 });
 
 // ---------------------------------------------------------------------------

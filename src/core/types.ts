@@ -2,7 +2,7 @@ export type Lang = 'zh' | 'en';
 export type UnitSystem = 'metric' | 'imperial';
 export type FrameType = 'static' | 'mobile' | 'seismic';
 export type Slot = 'front' | 'rear' | 'top' | 'base' | 'side' | 'vertical';
-export type Category = 'door' | 'panel' | 'base' | 'device' | 'power' | 'cooling' | 'accessory' | 'custom';
+export type Category = 'door' | 'panel' | 'base' | 'device' | 'test' | 'power' | 'cooling' | 'accessory' | 'custom';
 export type ViewMode = 'iso' | 'front' | 'rear' | 'side' | 'top';
 export type IpRating = 'IP20' | 'IP40' | 'IP55';
 export type DoorKind = 'perforated' | 'glass' | 'solid' | 'double' | 'none';
@@ -41,12 +41,19 @@ export interface PlacedItem {
   slot: Slot;
   color?: string;
   label?: string;
+  /** Per-layer rename; overrides the catalog name in lists, BOM specs and the 3D nameplate. */
+  name?: string;
+  /** Per-instance U height override (configurable instruments / custom chassis). */
+  uSize?: number;
+  /** Per-instance depth override in mm (custom chassis). */
+  depth?: number;
 }
 
 export type GeomKind =
   | 'server' | 'switch' | 'ups' | 'patch' | 'kvm' | 'pdu-h' | 'pdu-v'
   | 'fan' | 'shelf' | 'blank' | 'cable' | 'brush' | 'door' | 'side'
-  | 'top' | 'plinth' | 'caster' | 'label' | 'cutout' | 'logo' | 'ground';
+  | 'top' | 'plinth' | 'caster' | 'label' | 'cutout' | 'logo' | 'ground'
+  | 'chassis' | 'scope' | 'rf' | 'psu';
 
 export interface CatalogItem {
   id: string;
@@ -63,6 +70,12 @@ export interface CatalogItem {
   icon: string;
   partNo: string;
   maxPerRack?: number;
+  /** Discrete selectable U heights, e.g. [3,4,5] for a 3U–5U instrument. */
+  uOptions?: number[];
+  /** Free-form U height range [min,max] for a custom chassis. */
+  uRange?: [number, number];
+  /** Free-form depth range in mm [min,max] for a custom chassis. */
+  depthRange?: [number, number];
 }
 
 export interface ProjectConfig {

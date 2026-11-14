@@ -1,5 +1,5 @@
-import type { BomRow, ProjectConfig, UnitSystem } from './types';
-import { catalogById } from './catalog';
+import type { BomRow, PlacedItem, ProjectConfig, UnitSystem } from './types';
+import { catalogById, itemDepth, itemUSize } from './catalog';
 import { cabinetHeight, U_MM } from './standards';
 import { displayLength } from './units';
 import { L } from './i18n';
@@ -76,19 +76,21 @@ export function buildBom(config: ProjectConfig, sys: UnitSystem): BomRow[] {
     });
   }
 
-  // Aggregate placed components by part number.
-  const groups = new Map<string, { count: number; item: NonNullable<ReturnType<typeof catalogById>> }>();
+  // Aggregate by part number + effective size, so customised variants stay separate.
+  const groups = new Map<string, { count: number; item: NonNullable<ReturnType<typeof catalogById>>; first: PlacedItem }>();
   for (const p of config.items) {
     const c = catalogById(p.catalogId);
     if (!c) continue;
-    const g = groups.get(c.id);
+    const key = `${c.id}|${itemUSize(p)}|${Math.round(itemDepth(p))}`;
+    const g = groups.get(key);
     if (g) g.count += 1;
-    else groups.set(c.id, { count: 1, item: c });
+    else groups.set(key, { count: 1, item: c, first: p });
   }
-  for (const { count, item } of groups.values()) {
-    const spec = item.uSize > 0
-      ? `${item.uSize}U · ${item.depth > 0 ? displayLength(item.depth, sys) : '-'} · ${item.weight} kg`
-      : `0U · ${item.weight} kg`;
+  for (const { count, item, first } of groups.values()) {
+    const size = itemUSize(first);
+    const depth = itemDepth(first);
+    const spec = `${size > 0 ? `${size}U` : '0U'} · ${depth > 0 ? displayLength(depth, sys) : '-'} · ${item.weight} kg`
+      + (first.name ? ` · ${localized('名称', 'Name')}: ${first.name}` : '');
     const name = localized(item.name.zh, item.name.en);
     rows.push({
       partNo: item.partNo, name, spec, qty: count,

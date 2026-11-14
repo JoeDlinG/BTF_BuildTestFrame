@@ -1,5 +1,5 @@
 import type { AppState, CheckResult, PlacedItem } from './types';
-import { catalogById, occupiesU } from './catalog';
+import { catalogById, itemDepth, itemDisplayName, itemUSize, occupiesU } from './catalog';
 import { cabinetHeight, coolingBudget, loadLimit, rackHeight, usableDepth, WIDTH_OPTIONS } from './standards';
 import { displayLength, displayMass, displayU } from './units';
 import { L } from './i18n';
@@ -31,18 +31,21 @@ export function validate(state: AppState): CheckResult[] {
     totalKg += c.weight;
     totalW += c.power;
     if (!occupiesU(c)) continue;
-    mounted.push({ item, u: item.u, size: c.uSize, slot: item.slot });
+    const size = itemUSize(item);
+    const depth = itemDepth(item);
+    const name = itemDisplayName(item, state.lang);
+    mounted.push({ item, u: item.u, size, slot: item.slot });
 
-    if (item.u < 1 || item.u + c.uSize - 1 > frame.heightU) {
+    if (item.u < 1 || item.u + size - 1 > frame.heightU) {
       push('error',
-        `「${c.name.zh}」超出 19″ 安装区（${frame.heightU}U），当前起始 ${item.u}U。`,
-        `"${c.name.en}" exceeds the ${frame.heightU}U mounting area (starts at U${item.u}).`,
+        `「${name}」超出 19″ 安装区（${frame.heightU}U），当前起始 ${item.u}U，占 ${size}U。`,
+        `"${name}" exceeds the ${frame.heightU}U mounting area (starts at U${item.u}, occupies ${size}U).`,
         item.id);
     }
-    if (c.depth > 0 && c.depth > depthAvail) {
+    if (depth > 0 && depth > depthAvail) {
       push('error',
-        `「${c.name.zh}」深度 ${displayLength(c.depth, sys)} 大于可用安装深度 ${displayLength(depthAvail, sys)}，请加深机柜或调整 Xf/C 尺寸。`,
-        `"${c.name.en}" is ${displayLength(c.depth, sys)} deep but only ${displayLength(depthAvail, sys)} is available. Increase cabinet depth or adjust Xf/C.`,
+        `「${name}」深度 ${displayLength(depth, sys)} 大于可用安装深度 ${displayLength(depthAvail, sys)}，请加深机柜或调整 Xf/C 尺寸。`,
+        `"${name}" is ${displayLength(depth, sys)} deep but only ${displayLength(depthAvail, sys)} is available. Increase cabinet depth or adjust Xf/C.`,
         item.id);
     }
   }
@@ -53,11 +56,11 @@ export function validate(state: AppState): CheckResult[] {
       const a = mounted[i], b = mounted[j];
       if (a.slot !== b.slot) continue;
       if (a.u <= b.u + b.size - 1 && b.u <= a.u + a.size - 1) {
-        const ca = catalogById(a.item.catalogId)!;
-        const cb = catalogById(b.item.catalogId)!;
+        const na = itemDisplayName(a.item, state.lang);
+        const nb = itemDisplayName(b.item, state.lang);
         push('error',
-          `U 位冲突：${ca.name.zh} (U${a.u}–U${a.u + a.size - 1}) 与 ${cb.name.zh} (U${b.u}–U${b.u + b.size - 1}) 重叠。`,
-          `U conflict: ${ca.name.en} (U${a.u}–U${a.u + a.size - 1}) overlaps ${cb.name.en} (U${b.u}–U${b.u + b.size - 1}).`,
+          `U 位冲突：${na} (U${a.u}–U${a.u + a.size - 1}) 与 ${nb} (U${b.u}–U${b.u + b.size - 1}) 重叠。`,
+          `U conflict: ${na} (U${a.u}–U${a.u + a.size - 1}) overlaps ${nb} (U${b.u}–U${b.u + b.size - 1}).`,
           b.item.id);
       }
     }
@@ -166,7 +169,8 @@ export function projectMetrics(state: AppState): { totalKg: number; totalW: numb
     totalW += c.power;
     price += c.price;
     if (occupiesU(c) && item.slot === 'front') {
-      for (let u = item.u; u < item.u + c.uSize; u++) used.add(u);
+      const size = itemUSize(item);
+      for (let u = item.u; u < item.u + size; u++) used.add(u);
     }
   }
   return { totalKg, totalW, usedU: used.size, price };

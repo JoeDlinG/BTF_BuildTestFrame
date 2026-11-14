@@ -28,12 +28,17 @@
 |---|---|
 | ![爆炸图](docs/screenshots/03_exploded_en.png) | ![前视](docs/screenshots/04_front_en.png) |
 
+| 可配置测试设备（中文） | 组件库 + 属性（英文 / 英制） |
+|---|---|
+| ![测试设备](docs/screenshots/05_test_equipment_zh.png) | ![属性](docs/screenshots/06_library_inspector_en.png) |
+
 ### 功能对照
 
 | 参考配置器 | 本实现 |
 |---|---|
 | 一系列对话框定义高度 / 宽度 / 深度，生成框架 | 「框架向导」参数化定义，3D 框架即时重建 |
-| 拖放方式添加组件，组件库快速选件 | 41 个通用部件，HTML5 拖放到 3D 视图的 U 位；点击 `+` 自动找空位 |
+| 拖放方式添加组件，组件库快速选件 | 45 个通用部件，HTML5 拖放到 3D 视图的 U 位；点击 `+` 自动找空位 |
+| 按型号选配测试仪器与机箱 | 「测试设备」4 类可配置部件：U 高 / 深度按实例覆盖，改尺寸自动避让 U 位冲突 |
 | 可信性 / 合理性检查 | U 位冲突、越界、设备深度、1600 kg 静载 / 1000 kg 动载、散热功耗、IP/EMC 与门型匹配、脚轮与接地缺件、空 U 位气流 |
 | 色板即时预览 | RAL 色板 + 自定义取色，框架色 / 门色独立 |
 | 开孔、文字、图片 / Logo 定制 | 定制开孔面板、文字丝印、Logo 铭牌，丝印文字可编辑 |
@@ -42,6 +47,8 @@
 | 保存配置、作为新项目基线 | localStorage 自动保存 + JSON 配置导入 / 导出 |
 
 额外能力：等轴测 / 前 / 后 / 侧 / 顶视图、爆炸图、线框模式、尺寸标注与 U 位刻度、部件拾取高亮、颜色与丝印编辑、上移下移 / 复制 / 删除。
+
+**可配置测试设备**：自定义测试机箱（U 高 1–12U、深度 200–1400 mm 自由输入，支持 `600mm` / `24in`）、示波器与 RF 测试仪（3 / 4 / 5U 下拉可选）、可编程电源（1–5U 下拉可选）；4 类设备在 3D 前面板上带独立配色识别条。**每层组件可重命名**，名称同步到列表、BOM 规格与 3D 铭牌。**调整右侧「已装配组件」列表顺序即可挪动机柜内位置**：拖动行或点 ▲▼，U 位按新顺序自动重排并避让冲突；改 U 高 / 深度时同样自动找空位，空间不足会提示。
 
 ### 单位与标准
 
@@ -75,7 +82,7 @@ npm run preview    # 预览构建产物
 
 1. **框架向导**：选预设或自定义 U 数 / 宽 / 深 / Xf-C 凹槽 / 框架类型 / IP / EMC / 门型 / 颜色。
 2. **组件库**：按分类筛选或搜索，拖到 3D 视图的目标 U 位；也可点 `+` 自动放到空位。
-3. **属性**：修改起始 U 位、部件颜色、丝印文字，或上移 / 下移 / 复制 / 删除。
+3. **属性**：重命名该层、修改起始 U 位 / U 高 / 深度 / 颜色 / 丝印；拖动列表行或点 ▲▼ 调整顺序（U 位自动重排），也可上移 / 下移 1U、复制、删除。
 4. **检查**：实时查看错误与提示，点击条目可定位部件。
 5. **BOM / 导出**：查看物料清单，导出 JSON / CSV / PNG / STL / GLB。
 
@@ -119,7 +126,7 @@ docs/screenshots/       浏览器实测截图
 
 ### 验证
 
-`npm run build` 通过；Chromium 无头浏览器实测覆盖：单位换算（600 mm ⇄ 23.62 in、`24in` 输入解析为 609.6 mm）、中英切换、拖放到 U30/U21/U11、U 位冲突拦截、JSON 导出回载、5 种导出文件生成、爆炸图与前视图，控制台零错误。截图见 `docs/screenshots/`。
+`npm run build` 通过；Chromium 无头浏览器实测覆盖：单位换算（600 mm ⇄ 23.62 in、`24in` 输入解析为 609.6 mm）、中英切换、拖放到 U30/U21/U11、U 位冲突拦截、JSON 导出回载、5 种导出文件生成、爆炸图与前视图；新增功能另测 4 类测试组件默认值、U 高 / 深度编辑与冲突自动避让、900 mm ⇄ 35.43 in、逐层重命名、▲▼ 与拖放两种排序后的 U 位重排、超深触发检查错误、中英 / 公英制切换、JSON 回载还原自定义字段，控制台零错误。截图见 `docs/screenshots/`。
 
 ---
 
@@ -138,7 +145,8 @@ The workflow was studied from the public documentation of the [nVent SCHROFF Var
 | Reference configurator | This implementation |
 |---|---|
 | Dialog-driven frame definition (H / W / D) | Parametric Frame Wizard with instant 3D rebuild |
-| Drag-and-drop assembly from a component library | 41 generic parts, HTML5 drag onto U positions, `+` for auto-placement |
+| Drag-and-drop assembly from a component library | 45 generic parts, HTML5 drag onto U positions, `+` for auto-placement |
+| Configure instruments and chassis by model | 4 configurable Test Equipment parts with per-instance U height / depth and automatic U-collision avoidance |
 | Plausibility checks | U collisions, out-of-range, device depth, 1600 kg static / 1000 kg dynamic load, cooling budget, door vs IP/EMC, missing castors/grounding, open-U airflow |
 | Live colour palette | RAL swatches + custom picker, separate frame and door colours |
 | Cut-outs, text, logo customisation | Cut-out panel, silk-screen text, logo nameplate with editable text |
@@ -147,6 +155,8 @@ The workflow was studied from the public documentation of the [nVent SCHROFF Var
 | Save configurations / reuse as baseline | localStorage auto-save + JSON import / export |
 
 Also: isometric / front / rear / side / top views, exploded view, wireframe, dimension annotations and U ruler, pick highlighting, per-part colour/label editing, move / duplicate / delete.
+
+**Configurable test equipment**: custom test chassis (free 1–12U height and 200–1400 mm depth, accepts `600mm` / `24in`), oscilloscope and RF test set (selectable 3 / 4 / 5U), programmable power supply (1–5U); each has its own colour identity strip on the 3D front panel. **Every layer can be renamed** — the name flows into the list, BOM spec and the 3D nameplate. **Reordering the Assembled Components list moves parts inside the rack**: drag a row or use ▲▼ and U positions reflow with collision avoidance; resizing also relocates a part to the nearest free slot and warns when there is no space.
 
 ### Units & standards
 
@@ -180,7 +190,7 @@ npm run preview    # serve the build
 
 1. **Frame Wizard** — pick a preset or set U count / width / depth / Xf-C setbacks / frame type / IP / EMC / doors / colours.
 2. **Component Library** — filter or search, then drag onto a U position in the 3D view (or click `+`).
-3. **Inspector** — edit start U, colour, silk-screen text; move / duplicate / delete.
+3. **Inspector** — rename the layer; edit start U / U height / depth / colour / silk-screen; drag rows or use ▲▼ to reorder (U positions reflow), or move 1U / duplicate / delete.
 4. **Checks** — live errors and warnings; click an entry to select the part.
 5. **BOM / Export** — review the bill of materials and export JSON / CSV / PNG / STL / GLB.
 
@@ -217,4 +227,4 @@ three 0.187.0 (MIT), Vite 7.x (MIT), TypeScript 5.9.x (Apache-2.0), @types/three
 
 ### Verification
 
-`npm run build` passes. Headless Chromium tests covered unit conversion, bilingual switching, drag placement onto U30/U21/U11, U-collision rejection, JSON round-trip, all five export formats, exploded and front views — zero console errors. Screenshots are in `docs/screenshots/`.
+`npm run build` passes. Headless Chromium tests covered unit conversion, bilingual switching, drag placement onto U30/U21/U11, U-collision rejection, JSON round-trip, all five export formats, exploded and front views; plus the new configurable parts (default values, U-height / depth edits with collision avoidance, 900 mm ⇄ 35.43 in), per-layer rename, ▲▼ and drag reordering, oversize-depth check errors, and JSON round-trip of all custom fields — zero console errors. Screenshots are in `docs/screenshots/`.

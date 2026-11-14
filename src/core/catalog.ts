@@ -1,4 +1,4 @@
-import type { CatalogItem, Category } from './types';
+import type { CatalogItem, Category, Lang, PlacedItem } from './types';
 
 /**
  * Component library. Everything is an open, generic 19" part — no vendor-specific
@@ -58,6 +58,24 @@ export const CATALOG: CatalogItem[] = [
   { id: 'meas-2u', partNo: 'BTF-DV-MEAS2', category: 'device', slot: 'front', uSize: 2, depth: 550, weight: 11, power: 260, price: 9800, geom: 'server', icon: 'MS',
     name: { zh: '2U 测试测量仪器', en: '2U test & measurement unit' }, desc: { zh: '程控电源 / 数据采集主机', en: 'Programmable supply / DAQ mainframe' } },
 
+  // ---------- test equipment: configurable U height / depth ----------
+  { id: 'custom-chassis', partNo: 'BTF-TE-CHS-C', category: 'test', slot: 'front', uSize: 4, depth: 600, weight: 9, power: 80, price: 2400, geom: 'chassis', icon: 'CH',
+    uRange: [1, 12], depthRange: [200, 1400],
+    name: { zh: '自定义测试机箱', en: 'Custom test chassis' },
+    desc: { zh: 'U 高 1–12U、深度 200–1400 mm 可自定义，可逐层重命名', en: 'Custom 1–12U height and 200–1400 mm depth; each layer can be renamed' } },
+  { id: 'scope', partNo: 'BTF-TE-SCOPE', category: 'test', slot: 'front', uSize: 3, depth: 550, weight: 12, power: 220, price: 38000, geom: 'scope', icon: 'OS',
+    uOptions: [3, 4, 5],
+    name: { zh: '示波器', en: 'Oscilloscope' },
+    desc: { zh: '机架式数字示波器，3U / 4U / 5U 可选', en: 'Rack-mount digital oscilloscope, selectable 3U / 4U / 5U' } },
+  { id: 'rf-tester', partNo: 'BTF-TE-RF', category: 'test', slot: 'front', uSize: 3, depth: 600, weight: 14, power: 260, price: 52000, geom: 'rf', icon: 'RA',
+    uOptions: [3, 4, 5],
+    name: { zh: 'RF 测试仪', en: 'RF test set' },
+    desc: { zh: '矢量信号分析 / 射频综测仪，3U / 4U / 5U 可选', en: 'Vector signal analyser / RF test set, selectable 3U / 4U / 5U' } },
+  { id: 'prog-psu', partNo: 'BTF-TE-PSU', category: 'test', slot: 'front', uSize: 1, depth: 500, weight: 15, power: 350, price: 16000, geom: 'psu', icon: 'PS',
+    uOptions: [1, 2, 3, 4, 5],
+    name: { zh: '可编程电源', en: 'Programmable power supply' },
+    desc: { zh: '程控直流电源，1U–5U 可选，支持多路输出与回读', en: 'Programmable DC supply, selectable 1U–5U, multi-channel with readback' } },
+
   // ---------- power ----------
   { id: 'pdu-0u', partNo: 'BTF-PW-PDU0U', category: 'power', slot: 'vertical', uSize: 0, depth: 0, weight: 3.2, power: 0, price: 1450, geom: 'pdu-v', icon: 'P0',
     name: { zh: '0U 竖直 PDU', en: '0U vertical PDU' }, desc: { zh: '24 位 C13/C19，带电流监测', en: '24×C13/C19 with current metering' }, maxPerRack: 2 },
@@ -106,7 +124,7 @@ export const CATALOG: CatalogItem[] = [
 ];
 
 export const CATEGORY_ORDER: Category[] = [
-  'door', 'panel', 'base', 'device', 'power', 'cooling', 'accessory', 'custom',
+  'door', 'panel', 'base', 'device', 'test', 'power', 'cooling', 'accessory', 'custom',
 ];
 
 const INDEX = new Map(CATALOG.map((c) => [c.id, c]));
@@ -122,6 +140,7 @@ export function categoryLabel(cat: Category | 'all'): { zh: string; en: string }
     panel: { zh: '覆板', en: 'Panels' },
     base: { zh: '底座', en: 'Base' },
     device: { zh: '19″ 设备', en: '19″ Devices' },
+    test: { zh: '测试设备', en: 'Test Equipment' },
     power: { zh: '供电', en: 'Power' },
     cooling: { zh: '散热', en: 'Cooling' },
     accessory: { zh: '附件', en: 'Accessories' },
@@ -133,4 +152,60 @@ export function categoryLabel(cat: Category | 'all'): { zh: string; en: string }
 /** True when the item occupies one or more U positions in a 19" rail. */
 export function occupiesU(item: CatalogItem): boolean {
   return item.uSize > 0 && (item.slot === 'front' || item.slot === 'rear');
+}
+
+/** Effective U height of a placed component (per-instance override wins). */
+export function itemUSize(item: PlacedItem): number {
+  const c = catalogById(item.catalogId);
+  if (!c) return 1;
+  return item.uSize && item.uSize > 0 ? item.uSize : c.uSize;
+}
+
+/** Effective depth in mm of a placed component. */
+export function itemDepth(item: PlacedItem): number {
+  const c = catalogById(item.catalogId);
+  return item.depth && item.depth > 0 ? item.depth : (c?.depth ?? 0);
+}
+
+export function itemOccupiesU(item: PlacedItem): boolean {
+  const c = catalogById(item.catalogId);
+  return !!c && occupiesU(c) && itemUSize(item) > 0;
+}
+
+/** Per-layer rename wins over the catalog name; falls back to the active language. */
+export function itemDisplayName(item: PlacedItem, lang: Lang): string {
+  const custom = item.name?.trim();
+  if (custom) return custom;
+  const c = catalogById(item.catalogId);
+  return c ? c.name[lang] : item.catalogId;
+}
+
+export function isConfigurable(c: CatalogItem): boolean {
+  return !!(c.uOptions || c.uRange || c.depthRange);
+}
+
+/** Default per-instance overrides written when a configurable part is added. */
+export function defaultOverrides(c: CatalogItem): Partial<PlacedItem> {
+  if (!isConfigurable(c)) return {};
+  const out: Partial<PlacedItem> = {};
+  if (c.uOptions || c.uRange) out.uSize = c.uOptions ? c.uOptions[0] : c.uSize;
+  out.depth = c.depth;
+  return out;
+}
+
+/** Clamp an edited U height to what the catalog part allows. */
+export function clampUSize(c: CatalogItem, value: number): number {
+  const n = Math.round(value);
+  if (!Number.isFinite(n)) return c.uSize;
+  if (c.uOptions) return c.uOptions.includes(n) ? n : c.uOptions[0];
+  if (c.uRange) return Math.max(c.uRange[0], Math.min(c.uRange[1], n));
+  return c.uSize;
+}
+
+/** Clamp an edited depth (mm) to what the catalog part allows. */
+export function clampDepth(c: CatalogItem, value: number): number {
+  if (!Number.isFinite(value)) return c.depth;
+  const range = c.depthRange;
+  if (!range) return c.depth;
+  return Math.round(Math.max(range[0], Math.min(range[1], value)));
 }
