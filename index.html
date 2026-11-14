@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="BTF BuildTestFrame - open-source online 19-inch rack cabinet configurator / 开源在线标准机柜设计拼装工具" />
+    <title>BTF BuildTestFrame · 在线机柜设计拼装</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23c62828'/%3E%3Crect x='17' y='12' width='30' height='40' rx='2' fill='none' stroke='white' stroke-width='3'/%3E%3Cpath d='M17 22h30M17 32h30M17 42h30' stroke='white' stroke-width='2'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">BTF</div>
+          <div class="brand-text">
+            <strong>BuildTestFrame</strong>
+            <span data-i18n="app.subtitle">在线标准机柜设计拼装</span>
+          </div>
+        </div>
+
+        <div class="top-tools">
+          <div class="control-group">
+            <label data-i18n="top.unit">单位</label>
+            <div class="segmented" id="unit-switch" role="group">
+              <button type="button" data-unit="metric" class="active" data-i18n="unit.metricShort">mm · GB</button>
+              <button type="button" data-unit="imperial" data-i18n="unit.imperialShort">in · EIA</button>
+            </div>
+          </div>
+          <div class="control-group">
+            <label data-i18n="top.lang">语言</label>
+            <div class="segmented" id="lang-switch" role="group">
+              <button type="button" data-lang="zh" class="active">中文</button>
+              <button type="button" data-lang="en">EN</button>
+            </div>
+          </div>
+          <span class="divider"></span>
+          <button type="button" class="btn ghost" id="btn-new" data-i18n="top.new">新建</button>
+          <button type="button" class="btn ghost" id="btn-open" data-i18n="top.open">打开</button>
+          <div class="dropdown">
+            <button type="button" class="btn primary" id="btn-export-toggle" data-i18n="top.export">导出 ▾</button>
+            <div class="dropdown-menu" id="export-menu" hidden>
+              <button type="button" data-export="json" data-i18n="export.json">配置文件 (.json)</button>
+              <button type="button" data-export="csv" data-i18n="export.csv">物料清单 (.csv)</button>
+              <button type="button" data-export="png" data-i18n="export.png">视图快照 (.png)</button>
+              <button type="button" data-export="stl" data-i18n="export.stl">3D 模型 (.stl)</button>
+              <button type="button" data-export="glb" data-i18n="export.glb">3D 模型 (.glb)</button>
+            </div>
+          </div>
+          <button type="button" class="btn ghost icon" id="btn-help" title="Help">?</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="side side-left">
+          <div class="side-tabs" id="left-tabs">
+            <button type="button" data-panel="wizard" class="active" data-i18n="tab.wizard">框架向导</button>
+            <button type="button" data-panel="library" data-i18n="tab.library">组件库</button>
+          </div>
+          <div class="side-body">
+            <section class="panel active" id="panel-wizard"></section>
+            <section class="panel" id="panel-library"></section>
+          </div>
+        </aside>
+
+        <section class="stage">
+          <div id="viewport" aria-label="3D cabinet viewport"></div>
+          <div class="stage-tools" id="view-tools">
+            <button type="button" data-view="iso" class="active" data-i18n="view.iso">等轴测</button>
+            <button type="button" data-view="front" data-i18n="view.front">前视</button>
+            <button type="button" data-view="rear" data-i18n="view.rear">后视</button>
+            <button type="button" data-view="side" data-i18n="view.side">侧视</button>
+            <button type="button" data-view="top" data-i18n="view.top">顶视</button>
+            <span class="vsep"></span>
+            <button type="button" id="btn-explode" data-i18n="view.explode">爆炸图</button>
+            <button type="button" id="btn-wireframe" data-i18n="view.wireframe">线框</button>
+            <button type="button" id="btn-dimensions" data-i18n="view.dimensions">尺寸标注</button>
+            <button type="button" id="btn-reset-camera" data-i18n="view.reset">复位</button>
+          </div>
+          <div class="stage-overlay" id="stage-overlay">
+            <div class="overlay-badge" id="overlay-standard"></div>
+            <div class="overlay-hint" id="overlay-hint"></div>
+          </div>
+          <div class="drop-hint" id="drop-hint" hidden></div>
+        </section>
+
+        <aside class="side side-right">
+          <div class="side-tabs" id="right-tabs">
+            <button type="button" data-panel="inspector" class="active" data-i18n="tab.inspector">属性</button>
+            <button type="button" data-panel="checks" data-i18n="tab.checks">检查</button>
+            <button type="button" data-panel="bom" data-i18n="tab.bom">BOM</button>
+          </div>
+          <div class="side-body">
+            <section class="panel active" id="panel-inspector"></section>
+            <section class="panel" id="panel-checks"></section>
+            <section class="panel" id="panel-bom"></section>
+          </div>
+        </aside>
+      </main>
+
+      <footer class="statusbar">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text"></span>
+        <span class="spacer"></span>
+        <span id="status-metrics"></span>
+      </footer>
+    </div>
+
+    <div id="toast-host" aria-live="polite"></div>
+    <div id="modal-host" hidden></div>
+    <input type="file" id="file-input" accept=".json,application/json" hidden />
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

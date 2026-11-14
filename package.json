@@ -1,0 +1,32 @@
+{
+  "name": "btf-buildtestframe",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "BTF BuildTestFrame - open-source online 19-inch rack cabinet configurator / 开源在线标准机柜设计拼装工具",
+  "keywords": [
+    "rack",
+    "cabinet",
+    "19-inch",
+    "EIA-310",
+    "IEC-60297",
+    "three.js",
+    "configurator",
+    "机柜",
+    "配置器"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@types/three": "0.187.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.0.0"
+  }
+}
