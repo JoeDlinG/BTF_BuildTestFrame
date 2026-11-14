@@ -36,6 +36,16 @@
 |---|---|
 | ![PDF 报告](docs/screenshots/07_pdf_report_zh.png) | ![PDF U 位排布](docs/screenshots/08_pdf_layout_en.png) |
 
+### 演示视频
+
+| Coming Soon 预告片 | 完整功能介绍 |
+|---|---|
+| ![预告片封面](docs/screenshots/09_video_teaser.png) | ![介绍视频封面](docs/screenshots/10_video_full.png) |
+
+- **预告片 19 秒**：ATEMall 即将推出在线测试机柜搭建工具，助力更高效地完成方案。
+- **完整介绍 92 秒**：9 个章节覆盖框架向导、组件库 / 测试设备、逐层命名与排序、合理性检查、3D 检视、单位与双语、七种导出、开源许可。
+- 成片 1920×1080 / 30fps / H.264 + AAC，中文字幕已烧录并附独立 SRT 时间码。MP4、字幕与分镜脚本文案随宣传素材包分发；因体积原因不纳入本仓库，此处仅保留封面。
+
 ### 功能对照
 
 | 参考配置器 | 本实现 |
@@ -151,6 +161,16 @@ STEP / PDF 专项验证：用 `occt-import-js`（OpenCascade WASM）解析 `.stp
 A pure front-end 3D rack configurator: define the frame with a wizard (height / width / depth / Xf-C rail setbacks), then drag 19″ components onto specific U positions. A parametric 3D model, plausibility checks and a bill of materials update live.
 
 The workflow was studied from the public documentation of the [nVent SCHROFF Varistar CP 3D configurator](https://www.nvent.com/en-cn/schroff/configurator-overview-faqs). **This is an independent implementation: no code, imagery, trademarks or product data from that site are used, and there is no affiliation.**
+
+### Demo videos
+
+| Coming Soon teaser | Full walkthrough |
+|---|---|
+| ![Teaser cover](docs/screenshots/09_video_teaser.png) | ![Walkthrough cover](docs/screenshots/10_video_full.png) |
+
+- **19 s teaser** — ATEMall is about to launch an online test-rack builder that helps deliver solutions faster.
+- **92 s walkthrough** — nine chapters: frame wizard, component library and test instruments, per-layer rename and list-driven reordering, plausibility checks, 3D inspection, dual units and languages, seven export formats, open-source licence.
+- 1920x1080 / 30 fps / H.264 + AAC, with burned-in Chinese subtitles and separate time-coded SRT files. The MP4 files, subtitles and shot-by-shot script ship with the marketing asset pack; only the covers are kept here because of their size.
 
 ### Features
 
